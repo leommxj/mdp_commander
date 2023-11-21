@@ -391,8 +391,28 @@ def doAutoMatch(serial_device, addr, channel):
 def doLivePlot(serial_device, addr, channel, idcode):
     pass
 
-def doSet(serial_device, addr, channel, idcode, action, value):
-    pass
+def doSet(serial_device, addr, channel, idcode, operation, value):
+    if operation not in ('volt', 'voltage', 'curr', 'current', 'switch'):
+        return None
+    s = serial.Serial(serial_device, 115200, 8, 'N', 1, timeout=0.5)
+    p = P906(s, addr, channel, idcode)
+    p.connect()
+    if operation in ('volt', 'voltage'):
+        value = float(value)
+        r = p.setOutputVolt(value)
+    elif operation in ('curr', 'current'):
+        value = float(value)
+        r = p.setOutputCurr(value)
+    elif operation == 'switch':
+        if value == 'on':
+            r = p.switch(True)
+        elif value == 'off':
+            r = p.switch(False)
+        else:
+            return None
+    if r is True:
+        return True
+    return None
 
 
 if __name__ == '__main__':
@@ -410,6 +430,8 @@ if __name__ == '__main__':
     plotParser.add_argument('-I', '--idcode', required=True, type=lambda x: int(x,16), help="P906's ID in hex format")
     setParser = subparser.add_parser('set',parents=[parent_parser])
     setParser.add_argument('-I', '--idcode', required=True, type=lambda x: int(x,16), help="P906's ID in hex format")
+    setParser.add_argument('operation', type=str, help='')
+    setParser.add_argument('value', type=str, help='')
     args = parser.parse_args()
     logging.basicConfig(level=args.loglevel)
     if args.action == 'match':
@@ -417,6 +439,8 @@ if __name__ == '__main__':
     elif args.action == 'plot':
         doLivePlot()
     elif args.action == 'set':
-        doSet()
+        r = doSet(args.serial, args.addr, args.channel, args.idcode, args.operation, args.value)
+        if r is None:
+            setParser.print_help()
     else:
         parser.print_help()
