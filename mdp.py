@@ -20,7 +20,7 @@ def genGenericPacket(typ, data):
     return packet
 
 
-# type 4 
+# type 4
 def genGetVoltCurr():
     packet = genGenericPacket(4, bytes.fromhex('00'))
     return packet
@@ -58,11 +58,11 @@ def genDispatchChAddr(addr, ch):
 
 def parseType6Resp(data):
     assert(data[0]==6)
-    assert(data[1]==3)# or FAIL ? 
+    assert(data[1]==3)# or FAIL ?
     return data[2:data[1]]
 
 
-# type 7 
+# type 7
 def genSetVolt(idcode, voltage, ch_on_m01=0, blink=True):
     assert(0.0<=voltage<=30.0)
     v = "{:07.3f}".format(voltage).replace('.','')
@@ -131,16 +131,16 @@ def parseType7Resp(data):
     return None
 
 
-# type 8 
+# type 8
 def genGet8(idcode, ch_on_m01=0, blink=True):
     d = '{}{:02x}{:02x}'.format(idcode, ch_on_m01, 1 if blink else 0)
     packet = genGenericPacket(8, bytes.fromhex(d))
     return packet
-    
+
 def parseType8Resp(data, HVzero16, HVgain16, HCzero04, HCgain04):
     assert(data[0] == 8)
     assert(data[1]<=0x1c)
-    errflag = data[2] 
+    errflag = data[2]
     values = []
     for i in range(0, data[1]-1, 3):
         sd = data[2+1+i:2+1+i+3].hex()
@@ -279,7 +279,7 @@ class P906:
             self.status['HCgain04'] = HCgain04
             return (HVzero16, HVgain16, HCzero04, HCgain04)
         return None
-    
+
     def getSetValue(self):
         _, d = self.sr(genGet7(self.idcode, self.ch_on_m01))
         errflag, input_volt, input_curr, voltage, current, _ = parseType7Resp(d)
@@ -354,7 +354,7 @@ class P906:
         self.configAdapter()
         self.getGainOffset()
         self.getSetValue()
-    
+
     def autoMatch(self, retries=320):
         self.serwrite(b'\r\nAT+TEST\r\n')
         self.serial.read_until(b'OK\r\n')
@@ -375,9 +375,48 @@ class P906:
                 retries -= 1
                 continue
             break
-        self.logger.debug('sent Type 5 Call For Id on channel 78 to FFFFFFFFFF, recv id:{}'.format(self.idcode))
+        self.logger.info('sent Type 5 Call For Id on channel 78 to FFFFFFFFFF, recv id:{}'.format(self.idcode))
         d = self.sr(genDispatchChAddr(self.addr, self.ch))
-        self.logger.debug('sent Type 6 Dispatch channel {}, addr {}, recv :{}'.format(self.ch, self.addr, d[1].decode('latin1')))
+        self.logger.info('sent Type 6 Dispatch channel {}, addr {}, recv :{}'.format(self.ch, self.addr, d[1].decode('latin1')))
         self.configAdapter()
+        return self.idcode
 
 
+def doAutoMatch(serial_device, addr, channel):
+    s = serial.Serial(serial_device, 115200, 8, 'N', 1, timeout=0.5)
+    p = P906(s, addr, channel)
+    idcode = p.autoMatch()
+    print('matching P906 {} on channel {}, set addr to {:010x}'.format(idcode, channel, addr))
+
+def doLivePlot(serial_device, addr, channel, idcode):
+    pass
+
+def doSet(serial_device, addr, channel, idcode, action, value):
+    pass
+
+
+if __name__ == '__main__':
+    parent_parser = argparse.ArgumentParser(add_help=False)
+    parser = argparse.ArgumentParser(add_help=False)
+    subparser = parser.add_subparsers(title='action')
+    parent_parser.add_argument('-d', '--serial', required=True, type=str, help='serial device for nrf24_adapter, eg. "/dev/ttyS16"')
+    parent_parser.add_argument('-a', '--addr', type=lambda x: int(x,16), default='153614fae1', help='5 byte nrf24 rx/tx addr in hex format')
+    parent_parser.add_argument('-c', '--channel', type=int, default='50', help='nrf24 channel (0-78)')
+    parent_parser.add_argument('-l', '--loglevel', type=str, default='INFO', help='log level')
+    subparser.required = True
+    subparser.dest = 'action'
+    matchParser = subparser.add_parser('match', parents=[parent_parser])
+    plotParser = subparser.add_parser('plot',parents=[parent_parser])
+    plotParser.add_argument('-I', '--idcode', required=True, type=lambda x: int(x,16), help="P906's ID in hex format")
+    setParser = subparser.add_parser('set',parents=[parent_parser])
+    setParser.add_argument('-I', '--idcode', required=True, type=lambda x: int(x,16), help="P906's ID in hex format")
+    args = parser.parse_args()
+    logging.basicConfig(level=args.loglevel)
+    if args.action == 'match':
+        doAutoMatch(args.serial, args.addr, args.channel)
+    elif args.action == 'plot':
+        doLivePlot()
+    elif args.action == 'set':
+        doSet()
+    else:
+        parser.print_help()
