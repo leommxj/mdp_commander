@@ -2,7 +2,7 @@
 a tool using `arduino` board and `nrf24l01` as adapter to control the `Miniware MDP-P906` power supply.
 MDP-P906 is a Digital Power Supply Laboratory Programmable Linear Power Supply. It works great by itself. But during my use, I want to control it using a script on PC rather than the MDP-M01 module.  
 The MDP-M01 and MDP-P906 are using nrf24 to communicate with each other, so with nrf24 we should be able to communicate with the power supply from PC. After some reverse engineering and coding, here it is.
-
+[![demo](https://img.youtube.com/vi/77mbpnwBl-0/0.jpg)](https://www.youtube.com/watch?v=77mbpnwBl-0)
 ## Usage
 
 ### First
