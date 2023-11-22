@@ -153,7 +153,7 @@ def parseType8Resp(data, HVzero16, HVgain16, HCzero04, HCgain04):
 
 
 # type 9
-def genSetLedColor(idcode, led_color=0x3186, ch_on_m01=0, blink=True):
+def genSetLedColor(idcode, led_color=0x3168, ch_on_m01=0, blink=True):
     d = '{}{:02x}{:02x}{:04x}'.format(idcode, ch_on_m01, 1 if blink else 0, led_color)
     packet = genGenericPacket(9, bytes.fromhex(d))
     return packet
@@ -189,7 +189,7 @@ class ChecksumError(Exception):
 class P906:
     """
     """
-    def __init__(self, serial:serial.Serial, addr:int, channel:int, idcode:int|None = None, ch_on_m01:int=0, led_color:int=0x3168, retries=3, log_level=logging.INFO):
+    def __init__(self, serial:serial.Serial, addr:int, channel:int, idcode:int = None, ch_on_m01:int=0, led_color:int=0x3168, retries=3, log_level=logging.INFO):
         self.serial = serial
         if idcode:
             self.idcode = '{:08x}'.format(idcode)
@@ -283,7 +283,7 @@ class P906:
     def getSetValue(self):
         _, d = self.sr(genGet7(self.idcode, self.ch_on_m01))
         errflag, input_volt, input_curr, voltage, current, _ = parseType7Resp(d)
-        self.status['errflag'] = errflag
+        self.status['ErrFlag'] = errflag
         self.status['InputVoltage'] = input_volt
         self.status['InputCurrent'] = input_curr
         self.status['Voltage'] = voltage
@@ -304,7 +304,7 @@ class P906:
             d = self.sr(genSwitch(self.idcode, on, self.ch_on_m01))
             if (d[1][0] == 7 and d[1][1] == 0x1c):
                 errflag, input_volt, input_curr, voltage, current, _ = parseType7Resp(d[1])
-                self.status['errflag'] = errflag
+                self.status['ErrFlag'] = errflag
                 self.status['InputVoltage'] = input_volt
                 self.status['InputCurrent'] = input_curr
                 self.status['Voltage'] = voltage
@@ -320,7 +320,7 @@ class P906:
             d = self.sr(genSetVolt(self.idcode, voltage, self.ch_on_m01))
             if d[1][0] == 7:
                 errflag, input_volt, input_curr, voltage, current, _ = parseType7Resp(d[1])
-                self.status['errflag'] = errflag
+                self.status['ErrFlag'] = errflag
                 self.status['InputVoltage'] = input_volt
                 self.status['InputCurrent'] = input_curr
                 self.status['Voltage'] = voltage
@@ -336,7 +336,7 @@ class P906:
             d = self.sr(genSetCurr(self.idcode, current, self.ch_on_m01))
             if d[1][0] == 7:
                 errflag, input_volt, input_curr, voltage, current, _ = parseType7Resp(d[1])
-                self.status['errflag'] = errflag
+                self.status['ErrFlag'] = errflag
                 self.status['InputVoltage'] = input_volt
                 self.status['InputCurrent'] = input_curr
                 self.status['Voltage'] = voltage
@@ -388,8 +388,63 @@ def doAutoMatch(serial_device, addr, channel):
     idcode = p.autoMatch()
     print('matching P906 {} on channel {}, set addr to {:010x}'.format(idcode, channel, addr))
 
+def doGet(serial_device, addr, channel, idcode):
+    s = serial.Serial(serial_device, 115200, 8, 'N', 1, timeout=0.5)
+    p = P906(s, addr, channel, idcode)
+    p.connect()
+    adc_data = p.getRealtimeValue()
+    print(p.status)
+    print('recently adc data(corrected, in mV/mA): {}'.format(adc_data))
+
 def doLivePlot(serial_device, addr, channel, idcode):
-    pass
+    """
+        DO NOT USE!
+         a useless toy because of lag and packet loss
+    """
+    import numpy as np
+    import matplotlib.pyplot as plt
+    import matplotlib.animation as animation
+
+    x = []
+    volts = []
+    currs = []
+
+    figure, (volt_ax, curr_ax) = plt.subplots(2,1, sharex=True)
+    xlimit = 1000
+    volt_ax.set_xlim((0, xlimit))
+    volt_line, = volt_ax.plot(x, volts)
+    volt_ax.set_ylim(0, 30)
+
+    curr_line, = curr_ax.plot(x, currs)
+    curr_ax.set_ylim(0, 10)
+
+    s = serial.Serial(serial_device, 115200, 8, 'N', 1, timeout=0.5)
+    p = P906(s, addr, channel, idcode)
+    p.connect()
+
+    def func_animate(frame_n, p, args):
+        values = p.getRealtimeValue()
+        if values:
+            for value in values:
+                args[0] += 1
+                x.append(args[0])
+                volts.append(value[0]/1000.0)
+                currs.append(value[1]/1000.0)
+            if args[0] >= xlimit:
+                x.pop(0)
+                volts.pop(0)
+                currs.pop(0)
+                volt_ax.set_xlim((args[0]-xlimit, args[0]))
+
+        volt_line.set_data(x, volts)
+        curr_line.set_data(x, currs)
+
+        return volt_line,curr_line
+
+    args = [0]
+    ani = animation.FuncAnimation(figure, func_animate, fargs=(p, args), frames=None, interval=200)
+
+    plt.show()
 
 def doSet(serial_device, addr, channel, idcode, operation, value):
     if operation not in ('volt', 'voltage', 'curr', 'current', 'switch'):
@@ -426,6 +481,8 @@ if __name__ == '__main__':
     subparser.required = True
     subparser.dest = 'action'
     matchParser = subparser.add_parser('match', parents=[parent_parser])
+    getParser = subparser.add_parser('get', parents=[parent_parser])
+    getParser.add_argument('-I', '--idcode', required=True, type=lambda x: int(x,16), help="P906's ID in hex format")
     plotParser = subparser.add_parser('plot',parents=[parent_parser])
     plotParser.add_argument('-I', '--idcode', required=True, type=lambda x: int(x,16), help="P906's ID in hex format")
     setParser = subparser.add_parser('set',parents=[parent_parser])
@@ -436,8 +493,10 @@ if __name__ == '__main__':
     logging.basicConfig(level=args.loglevel)
     if args.action == 'match':
         doAutoMatch(args.serial, args.addr, args.channel)
+    elif args.action == 'get':
+        doGet(args.serial, args.addr, args.channel, args.idcode)
     elif args.action == 'plot':
-        doLivePlot()
+        doLivePlot(args.serial, args.addr, args.channel, args.idcode)
     elif args.action == 'set':
         r = doSet(args.serial, args.addr, args.channel, args.idcode, args.operation, args.value)
         if r is None:
