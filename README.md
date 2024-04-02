@@ -56,3 +56,4 @@ python3 mdp.py plot -d /dev/ttyS16 -I ${MACHINEID}
 * Protocol are not complex
 * P906 is very slow response when you lower the Voltage. It will not be immediately drop to the set value.
 * The communication distance is very short, the nrf24 module should be really close to P906. (Code in P906 are using max PALevel already, but signal are too weak, It may be caused by the metal casing and heat sink)
+  * see waht @[market84](https://github.com/market84) has found inside the MDP-M01: [extending the antenna](https://github.com/leommxj/mdp_commander/issues/1#issuecomment-2030820579)
