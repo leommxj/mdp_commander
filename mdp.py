@@ -189,7 +189,7 @@ class ChecksumError(Exception):
 class P906:
     """
     """
-    def __init__(self, serial:serial.Serial, addr:int, channel:int, idcode:int = None, ch_on_m01:int=0, led_color:int=0x3168, retries=3, log_level=logging.INFO):
+    def __init__(self, serial:serial.Serial, addr:int, channel:int, idcode:int = None, ch_on_m01:int=0, led_color:int=0x3168, retries=3, log_level=logging.NOTSET):
         self.serial = serial
         if idcode:
             self.idcode = '{:08x}'.format(idcode)
