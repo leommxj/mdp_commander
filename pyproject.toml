@@ -1,0 +1,20 @@
+[project]
+name = "mdp-commander"
+version = "0.1.0"
+description = "Control the Miniware MDP-P906 through an Arduino/nRF24L01 adapter"
+readme = "README.md"
+requires-python = ">=3.11"
+license = "Unlicense"
+dependencies = [
+    "hexdump>=3.3",
+    "pyserial>=3.5",
+]
+
+[project.optional-dependencies]
+plot = [
+    "matplotlib>=3.8",
+    "numpy>=1.26",
+]
+
+[project.urls]
+Repository = "https://github.com/leommxj/mdp_commander"

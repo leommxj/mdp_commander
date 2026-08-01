@@ -11,6 +11,18 @@ You need one arduino-compatible board and one nrf24l01 module. I'm using [emakef
 
 ### Then
 
+Install [uv](https://docs.astral.sh/uv/getting-started/installation/), then sync the core Python dependencies into a project-local environment:
+
+```shell
+uv sync
+```
+
+The optional plotting dependencies can be installed with:
+
+```shell
+uv sync --extra plot
+```
+
 * using as a lib
 
 ```python
@@ -38,14 +50,14 @@ p.getRealtimeValue()
 * using as a CLI program
 
 ```shell
-python3 mdp.py get -d /dev/ttyS16 -I ${MACHINEID}
+uv run mdp.py get -d /dev/ttyS16 -I ${MACHINEID}
 {'HVzero16': 74, 'HVgain16': 48545, 'HCzero04': 14, 'HCgain04': 30765, 'Voltage': 19.0, 'Current': 5.0, 'InputVoltage': 25.208, 'InputCurrent': 0.29, 'ErrFlag': 0}
 recently adc data(corrected, in mV/mA): [(19001, 77), (19001, 77), (19001, 84), (19001, 104), (19001, 89), (19001, 79), (19001, 77), (19001, 77), (19001, 107)]
 
-python3 mdp.py set switch off -d /dev/ttyS16 -I ${MACHINEID}
-python3 mdp.py set voltage 3.3 -d /dev/ttyS16 -I ${MACHINEID}
-python3 mdp.py set curr 4 -d /dev/ttyS16 -I ${MACHINEID}
-python3 mdp.py plot -d /dev/ttyS16 -I ${MACHINEID}
+uv run mdp.py set switch off -d /dev/ttyS16 -I ${MACHINEID}
+uv run mdp.py set voltage 3.3 -d /dev/ttyS16 -I ${MACHINEID}
+uv run mdp.py set curr 4 -d /dev/ttyS16 -I ${MACHINEID}
+uv run --extra plot mdp.py plot -d /dev/ttyS16 -I ${MACHINEID}
 ```
 
 

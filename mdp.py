@@ -472,7 +472,7 @@ def doSet(serial_device, addr, channel, idcode, operation, value):
 
 if __name__ == '__main__':
     parent_parser = argparse.ArgumentParser(add_help=False)
-    parser = argparse.ArgumentParser(add_help=False)
+    parser = argparse.ArgumentParser()
     subparser = parser.add_subparsers(title='action')
     parent_parser.add_argument('-d', '--serial', required=True, type=str, help='serial device for nrf24_adapter, eg. "/dev/ttyS16"')
     parent_parser.add_argument('-a', '--addr', type=lambda x: int(x,16), default='153614fae1', help='5 byte nrf24 rx/tx addr in hex format')
