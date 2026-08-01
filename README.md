@@ -23,44 +23,85 @@ The optional plotting dependencies can be installed with:
 uv sync --extra plot
 ```
 
-* using as a lib
-
-```python
-from mdp import P906
-from serial import Serial
-s = Serial('/dev/ttyS16', 115200, 8, 'N', 1, timeout=0.5)
-p = P906(s, 0x153614fae1, 45, 0x62E6491B)
-p.connect()
-# or trigger match without machine id
-p = P906(s, 0x153614fae1, 45)
-p.autoMatch()
-
-# set Voltage
-p.setOutputVolt(12.0)
-# set Current
-p.setOutputCurr(5.0)
-# switch on/off
-p.switch(True)
-p.switch(False)
-# get current voltage and current, this return multiple value.
-p.getRealtimeValue()
-# and other features, read the code
-```
-
-* using as a CLI program
+Check that the adapter is available:
 
 ```shell
-uv run mdp.py get -d /dev/ttyS16 -I ${MACHINEID}
-{'HVzero16': 74, 'HVgain16': 48545, 'HCzero04': 14, 'HCgain04': 30765, 'Voltage': 19.0, 'Current': 5.0, 'InputVoltage': 25.208, 'InputCurrent': 0.29, 'ErrFlag': 0}
-recently adc data(corrected, in mV/mA): [(19001, 77), (19001, 77), (19001, 84), (19001, 104), (19001, 89), (19001, 79), (19001, 77), (19001, 77), (19001, 107)]
-
-uv run mdp.py set switch off -d /dev/ttyS16 -I ${MACHINEID}
-uv run mdp.py set voltage 3.3 -d /dev/ttyS16 -I ${MACHINEID}
-uv run mdp.py set curr 4 -d /dev/ttyS16 -I ${MACHINEID}
-uv run --extra plot mdp.py plot -d /dev/ttyS16 -I ${MACHINEID}
+uv run mdp adapter-info -d /dev/ttyUSB0
 ```
 
+The adapter firmware keeps the original 115200-baud text protocol. `AT+INFO`
+reports firmware state and `AT+STAT` reports the transmit, no-ack, receive, and
+invalid-command counters.
 
+On Linux, the user running the command must have permission to access the serial device, commonly through the `dialout` group.
+
+### Pairing
+
+Pairing changes the P906 radio address and channel. Keep the adapter close to the P906 and run:
+
+```shell
+uv run mdp match -d /dev/ttyUSB0 -a 153614fae1 -c 50
+```
+
+Save the device ID printed by the command; subsequent commands require it.
+Channels 0 through 125 are supported. Pairing temporarily listens on channel 78
+before moving the device to the selected channel.
+
+### Using as a library
+
+```python
+from mdp_commander import P906
+from serial import Serial
+
+with Serial('/dev/ttyUSB0', 115200, 8, 'N', 1, timeout=0.5) as serial_port:
+    power_supply = P906(serial_port, 0x153614fae1, 50, 0x62E6491B)
+    power_supply.connect()
+    power_supply.setOutputVolt(12.0)
+    power_supply.setOutputCurr(5.0)
+    power_supply.switch(True)
+    print(power_supply.getRealtimeValue())
+```
+
+The old `from mdp import P906` import remains supported for compatibility.
+
+### Using the CLI
+
+```shell
+uv run mdp get -d /dev/ttyUSB0 -I "${MACHINEID}"
+{'HVzero16': 74, 'HVgain16': 48545, 'HCzero04': 14, 'HCgain04': 30765, 'Voltage': 23.1, 'Current': 0.2, 'InputVoltage': 25.271, 'InputCurrent': 2.072, 'OutputEnabled': True, 'OutputState': 'cv', 'Locked': False, 'Temperature': 34.0, 'RealtimeValues': [(23103, 1), (23103, 4), (23103, 4), (23103, 1)], 'ErrFlag': 0}
+recently adc data(corrected, in mV/mA): [(23103, 1), (23103, 1), (23103, 4), (23103, 1), (23103, 1), (23103, 1), (23103, 1), (23103, 1), (23103, 4)]
+
+uv run mdp set switch off -d /dev/ttyUSB0 -I "${MACHINEID}"
+uv run mdp set voltage 3.3 -d /dev/ttyUSB0 -I "${MACHINEID}"
+uv run mdp set curr 4 -d /dev/ttyUSB0 -I "${MACHINEID}"
+uv run --extra plot mdp plot -d /dev/ttyUSB0 -I "${MACHINEID}"
+```
+
+`OutputState` is `off`, `cc`, `cv`, or `on`; every state except `off` means the
+output is enabled. ADC values are rounded to the nearest mV/mA. Live plotting
+samples on a background thread so serial timeouts do not block the UI.
+
+`uv run mdp.py ...` remains available as a compatibility entry point.
+
+## Development
+
+```shell
+uv sync
+uv run pytest -q
+```
+
+Build the RF-Nano firmware with the pinned PlatformIO environment:
+
+```shell
+pio run -d nrf24_adapter
+```
+
+For the ATmega328P Nano with the new bootloader used by the tested RF-Nano,
+upload it with:
+
+```shell
+pio run -d nrf24_adapter --target upload --upload-port /dev/ttyUSB0
+```
 
 ## Notice
 
